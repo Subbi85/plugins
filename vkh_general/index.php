@@ -11,3 +11,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/admin/menu.php';
+require_once __DIR__ . '/includes/database.php';
+
+register_activation_hook( __FILE__, 'vkh_general_activate' );
+
+require_once __DIR__ . '/includes/dogs.php';
