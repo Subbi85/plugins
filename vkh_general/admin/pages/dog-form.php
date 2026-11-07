@@ -10,7 +10,7 @@ $vkh_editing = isset( $_GET['new'] ) || isset( $_GET['edit'] ) || isset( $GLOBAL
     <p><a class="button button-primary" href="<?php echo esc_url( add_query_arg( 'new', '1', $vkh_base_url ) ); ?>">Hund hinzufügen</a></p>
 <?php else : ?>
     <?php
-    $vkh_form = array( 'dog_id' => 0, 'name' => '', 'geburtsdatum' => '', 'huefte_id' => '', 'bemerkungen' => '', 'verstorben' => 0, 'championtitel' => array(), 'jlpp_huu' => array() );
+    $vkh_form = array( 'foto_id' => '', 'ahnentafel_id' => '', 'dog_id' => 0, 'name' => '', 'geburtsdatum' => '', 'huefte_id' => '', 'bemerkungen' => '', 'verstorben' => 0, 'championtitel' => array(), 'jlpp_huu' => array() );
     $vkh_form_error = $GLOBALS['vkh_dog_form_error'] ?? '';
     $vkh_edit_id = isset( $_GET['edit'] ) && is_scalar( $_GET['edit'] ) ? absint( $_GET['edit'] ) : 0;
     if ( isset( $GLOBALS['vkh_dog_form_input'] ) ) {
@@ -35,6 +35,22 @@ $vkh_editing = isset( $_GET['new'] ) || isset( $_GET['edit'] ) || isset( $GLOBAL
             <?php wp_nonce_field( 'vkh_save_dog' ); ?>
             <input type="hidden" name="dog_id" value="<?php echo esc_attr( $vkh_form['dog_id'] ); ?>">
             <table class="form-table" role="presentation"><tbody>
+                <?php foreach ( array( 'foto_id' => 'Foto', 'ahnentafel_id' => 'Ahnentafel' ) as $vkh_media_field => $vkh_media_label ) : ?>
+                <tr><th><?php echo esc_html( $vkh_media_label ); ?></th><td>
+                    <div class="vkh-media-field" data-kind="<?php echo esc_attr( $vkh_media_field ); ?>">
+                        <input type="hidden" name="<?php echo esc_attr( $vkh_media_field ); ?>" value="<?php echo esc_attr( $vkh_form[ $vkh_media_field ] ); ?>">
+                        <div class="vkh-media-preview" aria-live="polite" style="margin-bottom:10px">
+                            <?php if ( $vkh_form[ $vkh_media_field ] && 'attachment' === get_post_type( absint( $vkh_form[ $vkh_media_field ] ) ) ) : ?>
+                                <?php echo wp_get_attachment_image( absint( $vkh_form[ $vkh_media_field ] ), 'thumbnail', false, array( 'style' => 'max-width:150px;height:auto;display:block;margin-bottom:8px' ) ); ?>
+                                <span><?php echo esc_html( get_the_title( absint( $vkh_form[ $vkh_media_field ] ) ) ); ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <button type="button" class="button vkh-media-select"><?php echo esc_html( $vkh_media_label ); ?> auswählen</button>
+                        <button type="button" class="button vkh-media-remove" <?php echo empty( $vkh_form[ $vkh_media_field ] ) ? 'hidden' : ''; ?>>Zuordnung entfernen</button>
+                        <p class="description"><?php echo 'foto_id' === $vkh_media_field ? 'Ein Bild aus der Mediathek auswählen.' : 'Ein Bild oder PDF aus der Mediathek auswählen.'; ?> Die Zuordnung wird mit „Hund speichern“ übernommen.</p>
+                    </div>
+                </td></tr>
+                <?php endforeach; ?>
                 <tr><th><label for="vkh-name">Name *</label></th><td><input class="regular-text" id="vkh-name" name="name" type="text" maxlength="255" required value="<?php echo esc_attr( $vkh_form['name'] ); ?>"></td></tr>
                 <tr><th><label for="vkh-birth">Geburtsdatum</label></th><td><input id="vkh-birth" name="geburtsdatum" type="date" value="<?php echo esc_attr( $vkh_form['geburtsdatum'] ?? '' ); ?>"></td></tr>
                 <?php foreach ( array( 'championtitel' => array( 'Titel', 'titel' ), 'jlpp_huu' => array( 'JLPP / HUU', 'jlpp_huu' ) ) as $vkh_relation => $vkh_config ) : ?>

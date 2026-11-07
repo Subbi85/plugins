@@ -21,6 +21,8 @@ $vkh_dogs = $wpdb->get_results(
      ORDER BY hund.name ASC, hund.id ASC"
 );
 $vkh_query_failed = '' !== $wpdb->last_error;
+if ( $vkh_query_failed ) { vkh_general_log_error( 'dog_list_failed' ); }
+$vkh_query_failed = $vkh_query_failed || VKH_GENERAL_DB_VERSION !== get_option( 'vkh_general_db_version' );
 $wpdb->suppress_errors( $vkh_previous_suppression );
 $vkh_is_demo = ! $vkh_query_failed && empty( $vkh_dogs );
 
@@ -75,7 +77,6 @@ if ( $vkh_is_demo ) {
                     }
                 }
                 $vkh_fields = array(
-                    'ID'           => $vkh_is_demo ? '— (Vorschau)' : $vkh_dog->id,
                     'Name'         => $vkh_dog->name,
                     'Geburtsdatum' => $vkh_birthdate,
                     'Titel'        => $vkh_dog->titel,
@@ -87,6 +88,14 @@ if ( $vkh_is_demo ) {
                 ?>
                 <details name="vkh-dog">
                     <summary><?php echo esc_html( $vkh_dog->name ); ?><?php if ( $vkh_is_demo ) : ?><span class="vkh-demo-label"><?php esc_html_e( 'Dummy', 'vkh-general' ); ?></span><?php endif; ?></summary>
+                    <div style="padding:16px 20px 0">
+                        <?php if ( ! empty( $vkh_dog->foto_id ) && 'trash' !== get_post_status( $vkh_dog->foto_id ) ) : ?>
+                            <?php echo wp_get_attachment_image( $vkh_dog->foto_id, 'medium', false, array( 'style' => 'max-width:100%;height:auto;border-radius:4px' ) ); ?>
+                        <?php endif; ?>
+                        <?php if ( ! empty( $vkh_dog->ahnentafel_id ) && 'trash' !== get_post_status( $vkh_dog->ahnentafel_id ) && wp_get_attachment_url( $vkh_dog->ahnentafel_id ) ) : ?>
+                            <p><a target="_blank" rel="noopener noreferrer" href="<?php echo esc_url( wp_get_attachment_url( $vkh_dog->ahnentafel_id ) ); ?>">Ahnentafel öffnen</a></p>
+                        <?php endif; ?>
+                    </div>
                     <dl class="vkh-dog-info">
                         <?php foreach ( $vkh_fields as $vkh_label => $vkh_value ) : ?>
                             <dt><?php echo esc_html( $vkh_label ); ?></dt>

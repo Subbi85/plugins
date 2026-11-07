@@ -26,10 +26,16 @@ CREATE TABLE IF NOT EXISTS `wp_vkh_hund` (
     `name` VARCHAR(255) NOT NULL,
     `geburtsdatum` DATE DEFAULT NULL,
     `huefte_id` BIGINT UNSIGNED DEFAULT NULL,
+    `foto_id` BIGINT UNSIGNED DEFAULT NULL,
+    `ahnentafel_id` BIGINT UNSIGNED DEFAULT NULL,
     `bemerkungen` TEXT DEFAULT NULL,
     `verstorben` BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (`id`),
     KEY `idx_huefte` (`huefte_id`),
+    KEY `idx_foto` (`foto_id`),
+    KEY `idx_ahnentafel` (`ahnentafel_id`),
+    FOREIGN KEY (`foto_id`) REFERENCES `wp_posts` (`ID`) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (`ahnentafel_id`) REFERENCES `wp_posts` (`ID`) ON DELETE SET NULL ON UPDATE CASCADE,
     FOREIGN KEY (`huefte_id`) REFERENCES `wp_vkh_huefte` (`id`)
         ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
