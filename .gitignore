@@ -1,0 +1,5 @@
+# Ignore plugin directories by default.
+/*/
+
+# Include our VKH plugins and all their contents.
+!/vkh_*/
