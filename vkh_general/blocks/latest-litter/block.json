@@ -1,0 +1,12 @@
+{
+  "apiVersion": 3,
+  "name": "vkh/latest-litter",
+  "title": "VKH: Aktueller Wurf",
+  "category": "widgets",
+  "icon": "heart",
+  "description": "Welpen des neuesten Wurfs mit Ampelstatus. Die Überschrift erscheint nur bei verfügbaren Welpen.",
+  "textdomain": "vkh-general",
+  "supports": {"html": false},
+  "editorScript": "vkh-latest-litter-editor",
+  "style": "vkh-latest-litter"
+}

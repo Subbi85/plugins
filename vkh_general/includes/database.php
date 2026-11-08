@@ -1,7 +1,7 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-const VKH_GENERAL_DB_VERSION = '0.2.1';
+const VKH_GENERAL_DB_VERSION = '0.8.0';
 
 /** Execute idempotent DDL. No options changed here, also usable in isolated tests. */
 function vkh_general_install_schema() {
@@ -40,6 +40,45 @@ function vkh_general_install_schema() {
                 "ALTER TABLE `{$quoted_table}` ADD FOREIGN KEY (`{$column}`) REFERENCES `{$posts}` (`ID`) ON DELETE SET NULL ON UPDATE CASCADE"
             ) ) { throw new RuntimeException( 'schema_foreign_key' ); }
         }
+        $prospects = $wpdb->prefix . 'vkh_interessent';
+        $created_column = $wpdb->get_var( $wpdb->prepare(
+            'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s',
+            $prospects, 'angelegt_am'
+        ) );
+        if ( $wpdb->last_error ) { throw new RuntimeException( 'schema_inspect' ); }
+        // Historical creation times are unknown: retain NULL rather than invent a date.
+        $quoted_prospects = str_replace( '`', '``', $prospects );
+        if ( ! $created_column && false === $wpdb->query( "ALTER TABLE `{$quoted_prospects}` ADD COLUMN `angelegt_am` DATETIME DEFAULT NULL COMMENT 'UTC - NULL for legacy records'" ) ) {
+            throw new RuntimeException( 'schema_prospect_created' );
+        }
+        $email_index = $wpdb->get_var( $wpdb->prepare(
+            'SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s AND INDEX_NAME=%s',
+            $prospects, 'idx_email'
+        ) );
+        if ( $wpdb->last_error ) { throw new RuntimeException( 'schema_inspect' ); }
+        if ( ! $email_index && false === $wpdb->query( "ALTER TABLE `{$quoted_prospects}` ADD INDEX `idx_email` (`email`(191))" ) ) {
+            throw new RuntimeException( 'schema_prospect_email_index' );
+        }
+        $signup_table = $wpdb->prefix . 'vkh_anmeldung';
+        $quoted_signup = str_replace( '`', '``', $signup_table );
+        foreach ( array(
+            'doi_token_hash' => 'CHAR(64) DEFAULT NULL',
+            'doi_gueltig_bis' => 'DATETIME DEFAULT NULL',
+            'doi_mail_versuch_am' => 'DATETIME DEFAULT NULL',
+            'doi_mail_versendet_am' => 'DATETIME DEFAULT NULL',
+            'doi_mail_status' => "VARCHAR(20) NOT NULL DEFAULT 'ausstehend'",
+        ) as $column => $definition ) {
+            $exists = $wpdb->get_var( $wpdb->prepare( 'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s AND COLUMN_NAME=%s', $signup_table, $column ) );
+            if ( $wpdb->last_error ) { throw new RuntimeException( 'schema_inspect' ); }
+            if ( ! $exists && false === $wpdb->query( "ALTER TABLE `{$quoted_signup}` ADD COLUMN `{$column}` {$definition}" ) ) { throw new RuntimeException( 'schema_doi' ); }
+        }
+        $puppy_column = $wpdb->get_var( $wpdb->prepare( 'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s AND COLUMN_NAME=%s', $prospects, 'welpe_id' ) );
+        if ( $wpdb->last_error ) { throw new RuntimeException( 'schema_inspect' ); }
+        if ( ! $puppy_column && false === $wpdb->query( "ALTER TABLE `{$quoted_prospects}` ADD COLUMN `welpe_id` BIGINT UNSIGNED DEFAULT NULL" ) ) { throw new RuntimeException( 'schema_assignment' ); }
+        $puppy_table = $wpdb->prefix . 'vkh_welpe';
+        $assignment_fk = $wpdb->get_var( $wpdb->prepare( 'SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s AND COLUMN_NAME=%s AND REFERENCED_TABLE_NAME=%s', $prospects, 'welpe_id', $puppy_table ) );
+        if ( $wpdb->last_error ) { throw new RuntimeException( 'schema_inspect' ); }
+        if ( ! $assignment_fk && false === $wpdb->query( "ALTER TABLE `{$quoted_prospects}` ADD FOREIGN KEY (`welpe_id`) REFERENCES `" . str_replace( '`', '``', $puppy_table ) . "` (`id`) ON DELETE SET NULL ON UPDATE CASCADE" ) ) { throw new RuntimeException( 'schema_assignment_fk' ); }
         return true;
     } catch ( Throwable $error ) {
         $reference = vkh_general_log_error( 'schema_install_failed' );

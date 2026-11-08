@@ -12,6 +12,8 @@ $root = dirname( __DIR__ );
 require_once $root . '/includes/logging.php';
 require_once $root . '/includes/database.php';
 require_once $root . '/includes/dogs.php';
+require_once $root . '/includes/dog-pdf.php';
+require_once $root . '/includes/prospects.php';
 $checks = 0;
 function check( $condition, $message ) { global $checks; if ( ! $condition ) { throw new RuntimeException( $message ); } ++$checks; }
 $original_prefix = $wpdb->prefix;
@@ -55,6 +57,14 @@ try {
     check( ! is_wp_error( $id ), 'Create dog with media failed' );
     check( '2' === $wpdb->get_var( "SELECT COUNT(*) FROM `{$p}hund_championtitel` WHERE hund_id={$id}" ), 'Multiple titles missing' );
     check( '2' === $wpdb->get_var( "SELECT COUNT(*) FROM `{$p}hund_jlpp_huu` WHERE hund_id={$id}" ), 'Multiple health findings missing' );
+    $export_dog = vkh_general_pdf_dog_data( $id );
+    check( ! is_wp_error( $export_dog ) && str_contains( $export_dog->titel, 'Titel B' ), 'PDF must include all titles' );
+    $bytes = vkh_general_build_dog_pdf( $export_dog );
+    check( is_string( $bytes ) && str_starts_with( $bytes, '%PDF-' ), 'PDF generation failed' );
+    $export_dog->bemerkungen = str_repeat( "Hüfte und Größe: längere Bemerkung.\n", 150 );
+    $bytes = vkh_general_build_dog_pdf( $export_dog );
+    check( is_string( $bytes ) && preg_match_all( '~/Type /Page\b~', $bytes ) > 1, 'Long PDF must have multiple pages' );
+    check( is_wp_error( vkh_general_pdf_dog_data( 999999999 ) ), 'Missing dog must not be exported' );
     $row = $wpdb->get_row( "SELECT * FROM `{$p}hund` WHERE id={$id}" );
     check( (int) $row->foto_id === $attachments[0] && (int) $row->ahnentafel_id === $attachments[1], 'Media IDs not stored' );
     $_GET = array( 'edit' => $id );
@@ -84,16 +94,81 @@ try {
     $row = $wpdb->get_row( "SELECT * FROM `{$p}hund` WHERE id={$id}" );
     check( $row->name === "O'Balu" && null === $row->ahnentafel_id && '0' === $row->verstorben, 'Update/reset fields failed' );
     check( '1' === $wpdb->get_var( "SELECT COUNT(*) FROM `{$p}hund_championtitel` WHERE hund_id={$id}" ), 'Relation replacement failed' );
+    $wpdb->insert( $p . 'interessent', array( 'vorname' => 'Legacy', 'nachname' => 'Fixture', 'email' => 'legacy@example.com' ) );
+    $legacy_id = (int) $wpdb->insert_id;
+    check( false !== $wpdb->query( "ALTER TABLE `{$p}interessent` DROP COLUMN `angelegt_am`" ), 'Cannot simulate legacy prospect schema' );
+    check( true === vkh_general_install_schema(), 'Prospect creation-date migration failed' );
+    $legacy = vkh_general_get_prospect( $legacy_id );
+    check( $legacy && null === $legacy['angelegt_am'] && 'Legacy' === $legacy['vorname'], 'Legacy migration must retain data without inventing a creation date' );
+    check( $legacy_id === vkh_general_save_prospect( array( 'id' => $legacy_id, 'vorname' => 'Legacy', 'nachname' => 'Updated', 'email' => 'legacy@example.com' ) ), 'Legacy update failed' );
+    check( null === vkh_general_get_prospect( $legacy_id )['angelegt_am'], 'Editing legacy data must not invent a creation date' );
+    $wpdb->delete( $p . 'interessent', array( 'id' => $legacy_id ) );
+    $wpdb->update( $p . 'hund', array( 'name' => 'Safron' ), array( 'id' => $id ) );
+    $prospect_data = array( 'angelegt_am' => '1900-01-01 00:00:00', 'vorname' => 'Max <script>alert(1)</script>', 'nachname' => "O'Hundefreund", 'telefon' => '+49 (0) 123 456-789', 'email' => 'max@example.com', 'hundeerfahrung' => '1', 'hund_id' => $id );
+    $prospect_id = vkh_general_save_prospect( $prospect_data );
+    check( ! is_wp_error( $prospect_id ), 'Create prospect failed' );
+    $prospect_row = vkh_general_get_prospect( $prospect_id );
+    check( $prospect_row['nachname'] === "O'Hundefreund" && $prospect_row['email'] === 'max@example.com' && '1' === $prospect_row['hundeerfahrung'], 'Prospect fields not stored' );
+    check( (int) $prospect_row['hund_id'] === $id, 'Prospect dog reference not stored' );
+    $created_at = $prospect_row['angelegt_am'];
+    check( is_string( $created_at ) && abs( strtotime( $created_at . ' UTC' ) - time() ) < 30, 'Creation date must be generated in UTC, ignoring POST data' );
+    check( 'Nicht erfasst' === vkh_general_format_prospect_created( null ), 'Unknown creation date must be explicit' );
+    $tz_filter = static fn() => 'Europe/Berlin';
+    add_filter( 'pre_option_timezone_string', $tz_filter );
+    try {
+        check( '08.11.2026 13:00' === vkh_general_format_prospect_created( '2026-11-08 12:00:00' ), 'Creation date winter timezone conversion failed' );
+        check( '08.07.2026 14:00' === vkh_general_format_prospect_created( '2026-07-08 12:00:00' ), 'Creation date summer timezone conversion failed' );
+    } finally { remove_filter( 'pre_option_timezone_string', $tz_filter ); }
+    $_GET = array();
+    ob_start(); include $root . '/admin/pages/prospects.php'; $prospect_html = ob_get_clean();
+    check( str_contains( $prospect_html, 'max@example.com' ) && str_contains( $prospect_html, 'Bearbeiten' ), 'Prospect table missing contact/actions' );
+    check( ! str_contains( $prospect_html, '<script>alert(1)</script>' ), 'Unsafe prospect HTML' );
+    $_GET = array( 'edit' => $prospect_id );
+    ob_start(); include $root . '/admin/pages/prospects.php'; $prospect_html = ob_get_clean();
+    check( substr_count( $prospect_html, '<form ' ) === 1 && str_contains( $prospect_html, '_wpnonce' ), 'One protected prospect form expected' );
+    check( str_contains( $prospect_html, 'max@example.com' ) && str_contains( $prospect_html, 'checked=' ), 'Prospect form not prefilled' );
+    foreach ( array(
+        array( 'email' => 'invalid' ), array( 'vorname' => '' ), array( 'telefon' => 'call me' ),
+        array( 'hundeerfahrung' => '2' ), array( 'hund_id' => '999999999' ), array( 'id' => '999999999' ),
+        array( 'email' => array( 'bad' ) ), array( 'nachname' => str_repeat( 'a', 101 ) )
+    ) as $invalid ) {
+        check( is_wp_error( vkh_general_save_prospect( array_merge( $prospect_data, $invalid ) ) ), 'Invalid prospect input accepted' );
+    }
+    $prospect_update = array( 'angelegt_am' => '2099-01-01 00:00:00', 'id' => $prospect_id, 'vorname' => 'Max', 'nachname' => 'Hundefreund', 'telefon' => '', 'email' => 'neu@example.com', 'hund_id' => $id );
+    check( $prospect_id === vkh_general_save_prospect( $prospect_update ), 'Edit prospect failed' );
+    $prospect_row = vkh_general_get_prospect( $prospect_id );
+    check( '0' === $prospect_row['hundeerfahrung'] && '' === $prospect_row['telefon'] && 'neu@example.com' === $prospect_row['email'], 'Prospect update/reset failed' );
+    check( $created_at === $prospect_row['angelegt_am'], 'Creation date must remain unchanged when editing' );
+    $injection = static function( $query ) use ( $p ) { return str_starts_with( $query, 'UPDATE `' . $p . 'interessent`' ) ? 'VKH_TEST_INVALID_SQL' : $query; };
+    add_filter( 'query', $injection );
+    check( is_wp_error( vkh_general_save_prospect( array_merge( $prospect_update, array( 'vorname' => 'SECRET changed' ) ) ) ), 'Injected prospect failure accepted' );
+    remove_filter( 'query', $injection ); $injection = null;
+    check( 'Max' === vkh_general_get_prospect( $prospect_id )['vorname'], 'Prospect failure must retain old record' );
+    check( false === $wpdb->insert( $p . 'interessent', array( 'vorname' => 'Invalid', 'nachname' => 'FK', 'email' => 'fk@example.com', 'hund_id' => 999999999 ) ), 'Prospect FK not enforced' );
+    for ( $i = 0; $i < 26; ++$i ) {
+        check( false !== $wpdb->insert( $p . 'interessent', array( 'vorname' => 'Paging', 'nachname' => 'Test' . $i, 'email' => 'paging@example.com' ) ), 'Paging fixture insert failed' );
+    }
+    $page_one = vkh_general_list_prospects( 1 );
+    $page_last = vkh_general_list_prospects( 999 );
+    check( 25 === count( $page_one['items'] ) && 27 === $page_one['total'] && 2 === $page_one['pages'], 'Prospect pagination failed' );
+    check( 2 === count( $page_last['items'] ) && 2 === $page_last['page'], 'Prospect last page clamp failed' );
     $wpdb->delete( $p . 'hund', array( 'id' => $id ) );
+    check( null === vkh_general_get_prospect( $prospect_id )['hund_id'], 'Deleting dog must retain prospect and SET NULL' );
+    check( str_contains( file_get_contents( $log ), 'prospect_save_failed' ), 'Prospect failure not logged' );
     check( '0' === $wpdb->get_var( "SELECT COUNT(*) FROM `{$p}hund_championtitel`" ), 'Delete cascade failed' );
     $contents = file_get_contents( $log );
     check( str_contains( $contents, 'dog_save_failed' ) && ! str_contains( $contents, 'SECRET' ) && ! str_contains( $contents, 'INSERT INTO' ), 'Logging missing or sensitive data exposed' );
+    define( 'VKH_INTEGRATION_CASES', true );
+    require __DIR__ . '/signup-cases.php';
+    require __DIR__ . '/puppy-cases.php';
+    require __DIR__ . '/latest-litter-cases.php';
+    require __DIR__ . '/assignment-cases.php';
     echo "PASS: {$checks} integration assertions.\n";
 } catch ( Throwable $error ) {
     fwrite( STDERR, 'FAIL: ' . $error->getMessage() . "\n" ); $exit_code = 1;
 } finally {
     if ( $injection ) { remove_filter( 'query', $injection ); }
-    foreach ( array( 'hund_championtitel', 'hund_jlpp_huu', 'hund', 'huefte', 'jlpp_huu', 'championtitel' ) as $table ) {
+    foreach ( array( 'anmeldung', 'interessent', 'welpe', 'wurf', 'hund_championtitel', 'hund_jlpp_huu', 'hund', 'huefte', 'jlpp_huu', 'championtitel' ) as $table ) {
         if ( false === $wpdb->query( 'DROP TABLE IF EXISTS `' . $p . $table . '`' ) ) { $exit_code = 1; fwrite( STDERR, 'Cleanup failed for isolated test table.' . "\n" ); }
     }
     foreach ( $attachments as $attachment ) { wp_delete_attachment( $attachment, true ); }

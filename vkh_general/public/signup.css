@@ -1,0 +1,9 @@
+.vkh-signup{box-sizing:border-box;max-width:680px;padding:24px;border:1px solid #d7dfe3;border-radius:10px;background:#fff;color:#253541;line-height:1.55}
+.vkh-signup *{box-sizing:border-box}.vkh-signup h2{margin:0 0 10px;font-size:1.5em}.vkh-signup form>label,.vkh-signup-names>label{display:block;margin:0 0 16px;font-weight:600}
+.vkh-signup input[type=text],.vkh-signup input[type=email],.vkh-signup input[type=tel]{display:block;width:100%;min-height:44px;margin-top:6px;padding:9px 11px;border:1px solid #aab8c1;border-radius:5px;background:#fff;color:#253541;font:inherit}
+.vkh-signup-names{display:grid;grid-template-columns:1fr 1fr;gap:16px}.vkh-signup fieldset{margin:18px 0;padding:14px;border:1px solid #d7dfe3;border-radius:5px}.vkh-signup legend{font-weight:600;padding:0 5px}
+.vkh-signup .vkh-signup-check{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;font-weight:400}.vkh-signup-check input{flex-shrink:0;width:18px;height:18px;margin-top:4px}
+.vkh-signup button{min-height:44px;padding:11px 18px;border:0;border-radius:5px;background:#244f60;color:#fff;font:inherit;font-weight:600;cursor:pointer}.vkh-signup button:hover{background:#193d4b}
+.vkh-signup input:focus-visible,.vkh-signup button:focus-visible,.vkh-signup a:focus-visible{outline:3px solid #347b9a;outline-offset:3px}.vkh-signup-privacy{font-size:.9em;color:#465966}.vkh-signup-message{padding:12px;border-left:4px solid #347b9a;background:#edf5f7}
+.vkh-signup-trap{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important}
+@media(max-width:480px){.vkh-signup{padding:18px}.vkh-signup-names{grid-template-columns:1fr;gap:0}}

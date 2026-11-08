@@ -103,7 +103,7 @@ if ( $vkh_is_demo ) {
                         <?php endforeach; ?>
                     </dl>
                     <?php if ( ! $vkh_is_demo && ! $vkh_editing ) : ?>
-                        <p style="padding:0 20px 16px;margin:0"><a class="button" href="<?php echo esc_url( add_query_arg( 'edit', absint( $vkh_dog->id ), $vkh_base_url ) ); ?>">Hund bearbeiten</a></p>
+                        <p style="padding:0 20px 16px;margin:0"><a class="button" href="<?php echo esc_url( add_query_arg( 'edit', absint( $vkh_dog->id ), $vkh_base_url ) ); ?>">Hund bearbeiten</a> <a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'vkh_export_dog_pdf', 'dog_id' => absint( $vkh_dog->id ) ), admin_url( 'admin-post.php' ) ), 'vkh_export_dog_' . absint( $vkh_dog->id ) ) ); ?>">Als PDF exportieren</a></p>
                     <?php endif; ?>
                 </details>
             <?php endforeach; ?>

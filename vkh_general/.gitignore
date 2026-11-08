@@ -1,0 +1,4 @@
+# Host-specific font caches must not be deployed to other servers.
+/vendor/setasign/tfpdf/font/unifont/*.mtx.php
+/vendor/setasign/tfpdf/font/unifont/*.cw.dat
+/vendor/setasign/tfpdf/font/unifont/*.cw127.php

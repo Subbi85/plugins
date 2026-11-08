@@ -2,7 +2,7 @@
 /**
  * Plugin Name: VKH General
  * Description: Zentrale Verwaltung mit Übersicht, unseren Hunden, unseren Welpen und Interessenten.
- * Version: 0.2.1
+ * Version: 0.8.0
  * Text Domain: vkh-general
  */
 
@@ -17,3 +17,15 @@ require_once __DIR__ . '/includes/database.php';
 register_activation_hook( __FILE__, 'vkh_general_activate' );
 
 require_once __DIR__ . '/includes/dogs.php';
+
+require_once __DIR__ . '/includes/dog-pdf.php';
+
+require_once __DIR__ . '/includes/prospects.php';
+
+require_once __DIR__ . '/includes/signup.php';
+
+require_once __DIR__ . '/includes/confirmation.php';
+
+require_once __DIR__ . '/includes/puppies.php';
+
+require_once __DIR__ . '/includes/latest-litter.php';
